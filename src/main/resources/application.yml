@@ -1,0 +1,72 @@
+#
+# application.yml — главный конфигурационный файл Spring Boot.
+
+server:
+  port: 8080  # порт приложения (переопределяется переменной окружения SERVER_PORT)
+
+spring:
+  application:
+    name: bank-cards
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bankdb}
+    username: ${SPRING_DATASOURCE_USERNAME:admincard}
+    password: ${SPRING_DATASOURCE_PASSWORD:admincard}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  liquibase:
+    enabled: true
+    change-log: classpath:db/migration/db.migration-master.yaml
+
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+    cors:
+      mappings:
+        "/api/**":
+          allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+          allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+          allowed-headers: "*"
+          exposed-headers: Authorization,Content-Type
+          allow-credentials: true
+          max-age: 3600
+
+# Настройки Swagger / OpenAPI (springdoc)
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+# Пользовательские настройки безопасности и JWT
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:change-me-in-prod}
+      expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+      issuer: bank-cards
+      header: Authorization
+      prefix: Bearer
+    cors:
+      enabled: true
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      allowed-headers: "*"
+      exposed-headers: Authorization,Content-Type
+      allow-credentials: true
+      max-age: 3600
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    liquibase: INFO

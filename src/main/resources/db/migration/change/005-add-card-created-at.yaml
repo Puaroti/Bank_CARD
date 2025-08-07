@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-card-created-at
+      author: dev
+      changes:
+        - addColumn:
+            tableName: card
+            columns:
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+                  defaultValueComputed: CURRENT_TIMESTAMP
+      rollback:
+        - dropColumn:
+            tableName: card
+            columnName: created_at

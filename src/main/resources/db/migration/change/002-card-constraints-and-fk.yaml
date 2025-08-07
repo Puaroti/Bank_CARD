@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-card-constraints-and-fk
+      author: dev
+      changes:
+        - addNotNullConstraint:
+            tableName: card
+            columnName: balance
+            columnDataType: DECIMAL(15,2)
+        - addUniqueConstraint:
+            tableName: card
+            columnNames: card_number_encrypted
+            constraintName: uq_card_card_number_encrypted
+        - createIndex:
+            tableName: card
+            indexName: idx_card_user_id
+            columns:
+              - column:
+                  name: user_id
+        - addForeignKeyConstraint:
+            baseTableName: card
+            baseColumnNames: user_id
+            constraintName: fk_card_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            onUpdate: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: card
+            constraintName: fk_card_user
+        - dropIndex:
+            tableName: card
+            indexName: idx_card_user_id
+        - dropUniqueConstraint:
+            tableName: card
+            constraintName: uq_card_card_number_encrypted
+        - dropNotNullConstraint:
+            tableName: card
+            columnName: balance
+            columnDataType: DECIMAL(15,2)

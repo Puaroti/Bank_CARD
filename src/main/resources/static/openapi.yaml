@@ -1,0 +1,468 @@
+openapi: 3.0.3
+info:
+  title: Bank Card API
+  version: 1.0.0
+  description: |
+    Подробная спецификация API для сервиса банковских карт.
+    
+    - Архитектура контроллеров: ориентирована на роли (Admin/User)
+    - Аутентификация: JWT Bearer Token
+    - Язык описаний и комментариев: русский
+    
+    Примечание:
+    - В спецификации используются обобщённые DTO и примеры. Фактические поля могут отличаться — синхронизируйте при изменениях доменной модели.
+
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер разработки
+
+tags:
+  - name: Auth
+    description: Регистрация и получение токена (если будет добавлено)
+  - name: User
+    description: Пользовательские операции с картами и переводами
+  - name: Admin
+    description: Административные операции (доступно только для роли ADMIN)
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация нового пользователя
+      description: |
+        Регистрирует пользователя и, при необходимости, возвращает базовую информацию о нём.
+        Валидация входных данных производится на уровне контроллера/сервиса.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              ok:
+                summary: Корректный запрос
+                value:
+                  username: user1
+                  password: StrongP@ssw0rd
+                  fullName: Иван Иванов
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Ошибка валидации входных данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/users/{userId}/cards:
+    get:
+      tags: [User]
+      summary: Получить список карт пользователя
+      description: Возвращает список карт, принадлежащих указанному пользователю.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Идентификатор пользователя
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Список карт
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardDto'
+        '403':
+          description: Доступ запрещён (нет прав или не своя учётная запись)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [User]
+      summary: Выпустить новую карту пользователю
+      description: Пользователь может запросить выпуск новой карты на своё имя.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Идентификатор пользователя
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        description: Параметры выпуска карты (если применимо)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueCardRequest'
+      responses:
+        '201':
+          description: Карта успешно выпущена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDto'
+        '400':
+          description: Невалидные данные/конфликтные условия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/cards/{cardId}/block:
+    post:
+      tags: [User]
+      summary: Запросить блокировку своей карты
+      description: Переводит карту в статус BLOCKED, если это разрешено бизнес-правилами.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          description: Идентификатор карты
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Карта заблокирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDto'
+        '403': { description: Доступ запрещён }
+        '400': { description: Невозможно выполнить операцию (правила/состояние карты) }
+
+  /api/user/cards/{cardId}/unblock:
+    post:
+      tags: [User]
+      summary: Запросить разблокировку своей карты
+      description: Переводит карту в статус ACTIVE, если это разрешено бизнес-правилами (нельзя для EXPIRED).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          description: Идентификатор карты
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Карта разблокирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDto'
+        '400':
+          description: Нельзя разблокировать истёкшую карту или нарушены другие правила
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403': { description: Доступ запрещён }
+
+  /api/user/cards/{cardId}/balance:
+    get:
+      tags: [User]
+      summary: Получить баланс карты
+      description: Возвращает текущий баланс указанной карты пользователя.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          description: Идентификатор карты
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Баланс карты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '403': { description: Доступ запрещён }
+
+  /api/user/transfers:
+    post:
+      tags: [User]
+      summary: Перевод между картами пользователя
+      description: |
+        Выполняет перевод средств между картами, принадлежащими пользователю.
+        Проверяются статусы карт и доступность операции; операция при успехе фиксируется в истории.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+            examples:
+              ok:
+                summary: Корректный перевод
+                value:
+                  fromCardNumber: "4111111111111111"
+                  toCardNumber: "5555555555554444"
+                  amount: 1000.00
+                  description: Перевод на накопительную карту
+      responses:
+        '200':
+          description: Перевод успешно выполнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400': { description: Нарушены бизнес-правила перевода }
+        '403': { description: Доступ запрещён }
+
+  /api/admin/cards:
+    get:
+      tags: [Admin]
+      summary: Получить все карты (ADMIN)
+      description: Возвращает список всех карт в системе. Требуется роль ADMIN.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список всех карт
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardDto'
+        '403': { description: Доступ запрещён }
+
+  /api/admin/users/with-card-counts:
+    get:
+      tags: [Admin]
+      summary: Список пользователей с количеством карт (ADMIN)
+      description: Возвращает пользователей и количество карт для каждого. Требуется роль ADMIN.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserWithCardCount'
+        '403': { description: Доступ запрещён }
+
+  /api/admin/cards/{cardId}/unblock:
+    post:
+      tags: [Admin]
+      summary: Разблокировать карту (ADMIN)
+      description: Разблокирует карту (ACTIVE), если это не противоречит правилам (нельзя для EXPIRED). Требуется роль ADMIN.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          description: Идентификатор карты
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Карта разблокирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDto'
+        '400': { description: Нельзя разблокировать EXPIRED карту }
+        '403': { description: Доступ запрещён }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Стандартная ошибка API
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Время возникновения ошибки
+        status:
+          type: integer
+          description: HTTP статус
+        error:
+          type: string
+          description: Краткое наименование ошибки
+        message:
+          type: string
+          description: Детальное сообщение
+        path:
+          type: string
+          description: Запрошенный путь
+
+    UserDto:
+      type: object
+      description: Представление пользователя
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Идентификатор пользователя
+        username:
+          type: string
+          description: Логин пользователя
+        fullName:
+          type: string
+          description: Полное имя пользователя
+
+    UserWithCardCount:
+      type: object
+      description: Пользователь с числом его карт
+      properties:
+        user:
+          $ref: '#/components/schemas/UserDto'
+        cardCount:
+          type: integer
+          format: int32
+          description: Количество карт
+
+    CardDto:
+      type: object
+      description: Представление банковской карты
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Идентификатор карты
+        maskedNumber:
+          type: string
+          description: Маскированный номер карты (для отображения)
+          example: '4111 **** **** 1111'
+        status:
+          $ref: '#/components/schemas/CardStatus'
+        balance:
+          type: number
+          format: double
+          description: Текущий баланс карты
+        ownerId:
+          type: integer
+          format: int64
+          description: Идентификатор владельца карты
+
+    CardStatus:
+      type: string
+      description: Статус карты
+      enum: [ACTIVE, BLOCKED, EXPIRED]
+
+    BalanceResponse:
+      type: object
+      description: Ответ с балансом карты
+      properties:
+        cardId:
+          type: integer
+          format: int64
+          description: Идентификатор карты
+        balance:
+          type: number
+          format: double
+          description: Текущее значение баланса
+
+    TransferRequest:
+      type: object
+      description: Запрос на перевод между картами пользователя
+      required: [fromCardNumber, toCardNumber, amount]
+      properties:
+        fromCardNumber:
+          type: string
+          description: Полный номер карты-источника (до шифрования)
+        toCardNumber:
+          type: string
+          description: Полный номер карты-назначения (до шифрования)
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Сумма перевода
+        description:
+          type: string
+          description: Назначение перевода
+
+    TransferResponse:
+      type: object
+      description: Результат перевода
+      properties:
+        transferId:
+          type: integer
+          format: int64
+          description: Идентификатор операции перевода
+        status:
+          type: string
+          description: Статус перевода (например, SUCCESS)
+        fromCardId:
+          type: integer
+          format: int64
+          description: Идентификатор карты-источника
+        toCardId:
+          type: integer
+          format: int64
+          description: Идентификатор карты-назначения
+        amount:
+          type: number
+          format: double
+          description: Сумма перевода
+
+    RegisterRequest:
+      type: object
+      description: Запрос на регистрацию пользователя
+      required: [username, password, fullName]
+      properties:
+        username:
+          type: string
+          description: Желаемый логин
+        password:
+          type: string
+          format: password
+          description: Пароль (должен удовлетворять требованиям сложности)
+        fullName:
+          type: string
+          description: Полное имя
+
+    IssueCardRequest:
+      type: object
+      description: Параметры выпуска новой карты пользователю
+      properties:
+        productCode:
+          type: string
+          description: Код карточного продукта (если используется продуктовая линейка)
+        currency:
+          type: string
+          description: Валюта счёта
+
+security:
+  - bearerAuth: []

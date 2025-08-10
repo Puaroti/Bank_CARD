@@ -12,7 +12,7 @@ API для управления банковскими картами (поль�
 ## Предварительные требования
 - Java 21 (JDK)
 - Maven 3.9+
-- PostgreSQL 14+
+- PostgreSQL 17+
 - Docker / Docker Compose (опционально, для контейнерного запуска)
 
 ## Конфигурация
@@ -126,6 +126,7 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/user/users/1/c
   - `POST /api/user/cards/{cardId}/block` — блокировка своей карты
   - `POST /api/user/cards/{cardId}/unblock` — разблокировка своей карты
   - `GET /api/user/cards/{cardId}/balance` — баланс своей карты
+  - `POST /api/user/users/{userId}/cards` — создание новой карты пользователем для своего аккаунта
   - `POST /api/user/users/{userId}/transfers` — перевод между своими картами. Пример тела:
 
 ```json
@@ -144,7 +145,7 @@ docker-compose.yml:
 version: "3.9"
 services:
   db:
-    image: postgres:14
+    image: postgres:17
     container_name: bankcards-postgres
     environment:
       POSTGRES_DB: bankcards

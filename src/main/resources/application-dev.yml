@@ -1,0 +1,12 @@
+# Основные переменные
+SPRING_APP_NAME: bank-cards # имя приложения
+SPRING_APP_PORT: 8080 # порт
+
+# БД
+SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/bankcards # урл для базы данных
+SPRING_DATASOURCE_USERNAME: bankcards # юзернейм для бд
+SPRING_DATASOURCE_PASSWORD: bankcards # пароль для бд
+SPRING_SHOW_SQL: true # показывать sql в консоли
+LIQUIBASE_ENABLED: true # включения миграций
+
+#

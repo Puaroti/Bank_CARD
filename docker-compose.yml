@@ -7,7 +7,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bankcards
       SPRING_DATASOURCE_USERNAME: bankcards
       SPRING_DATASOURCE_PASSWORD: bankcards
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: local
       APP_SECURITY_JWT_SECRET: please-change-me-to-32-bytes-minimum-secret-key........
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0
     depends_on:
@@ -25,6 +25,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bankcards -d bankcards"]
       interval: 5s

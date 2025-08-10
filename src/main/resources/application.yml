@@ -1,27 +1,24 @@
-#
-# application.yml — главный конфигурационный файл Spring Boot.
-
 server:
-  port: 8080  # порт приложения (переопределяется переменной окружения SERVER_PORT)
+  port: ${SPRING_APP_PORT}
 
 spring:
   application:
-    name: bank-cards
+    name: ${SPRING_APP_NAME}
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bankdb}
-    username: ${SPRING_DATASOURCE_USERNAME:admincard}
-    password: ${SPRING_DATASOURCE_PASSWORD:admincard}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: ${SPRING_SHOW_SQL}
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
   liquibase:
-    enabled: true
+    enabled: ${LIQUIBASE_ENABLED}
     change-log: classpath:db/migration/db.migration-master.yaml
 
   mvc:

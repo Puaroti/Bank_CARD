@@ -211,18 +211,5 @@ docker compose up --build
 - Контроллеры тестируются через MockMvc с замоканным security-фильтром (см. `UserControllerTest`, `AdminControllerTest`).
 - Сервисные тесты проверяют бизнес-правила (например, запрет разблокировки EXPIRED).
 
-## Изменения API
-- Группа `/api/cards/**` удалена.
-  Используйте актуальные эндпоинты:
-  - вместо `POST /api/cards/{userId}` →
-    - Админ: `POST /api/admin/users/{userId}/cards` (опц. тело `{ "owner": "..." }`)
-    - Пользователь: `POST /api/user/users/{userId}/cards` (создание своей карты)
-  - вместо `GET /api/cards/{userId}` → `GET /api/user/users/{userId}/cards`
-  - вместо `PATCH /api/cards/{cardId}/status` → `PATCH /api/admin/cards/{cardId}/status`
-  - вместо `POST /api/cards/{cardId}/block-request` →
-    - `POST /api/user/cards/{cardId}/block` (пользователь)
-    - `POST /api/admin/cards/{cardId}/block` (админ)
-  - вместо `POST /api/cards/{userId}/additional` → `POST /api/admin/users/{userId}/cards` с телом `{ "owner": "..." }`
-
 ## License
 MIT (or your preferred license).

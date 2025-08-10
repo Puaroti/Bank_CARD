@@ -1,21 +1,22 @@
 # Bank_CARD
 
-User and Admin card management API built with Spring Boot 3 (Java 21), PostgreSQL, Liquibase, springdoc-openapi.
+API для управления банковскими картами (пользователь и администратор) на Spring Boot 3 (Java 21) с PostgreSQL, Liquibase и Swagger (springdoc-openapi).
 
-## Tech stack
+## Стек технологий
 - Java 21, Spring Boot 3.3.x
 - Spring Web, Spring Security (JWT), Spring Data JPA
 - PostgreSQL + Liquibase
 - springdoc-openapi (Swagger UI)
 - Lombok
 
-## Prerequisites
+## Предварительные требования
 - Java 21 (JDK)
 - Maven 3.9+
-- PostgreSQL 14+ running and accessible
+- PostgreSQL 14+
+- Docker / Docker Compose (опционально, для контейнерного запуска)
 
-## Configuration
-The app is configured via `application.yaml` (and profiles). Important properties:
+## Конфигурация
+Приложение настраивается через `application.yaml` (и профили). Важные свойства:
 
 ```yaml
 spring:
@@ -35,16 +36,16 @@ spring:
 app:
   security:
     jwt:
-      # Minimum 32 bytes. If absent/too short, a random key will be generated at runtime (tokens become ephemeral).
+      # Минимум 32 байта. Если пусто/короче — при старте сгенерируется случайный ключ (токены не переживут рестарт).
       secret: "please-change-me-to-32-bytes-minimum-secret-key........"
 ```
 
-Notes:
-- If you leave `app.security.jwt.secret` unset or shorter than 32 bytes, the app will log a warning and generate a random key at startup (useful for local dev, tokens won’t persist across restarts).
-- Liquibase will auto-apply migrations at startup.
+Примечания:
+- Если `app.security.jwt.secret` отсутствует или короче 32 байт, при запуске будет сгенерирован случайный ключ (удобно для локальной разработки, но токены не будут валидны после рестарта).
+- Liquibase применит миграции автоматически при старте.
 
-## Database
-Create a database and a user before the first run, for example:
+## База данных
+Создайте БД и пользователя перед первым запуском, например:
 
 ```sql
 CREATE DATABASE bankcards;
@@ -52,48 +53,76 @@ CREATE USER bankcards WITH ENCRYPTED PASSWORD 'bankcards';
 GRANT ALL PRIVILEGES ON DATABASE bankcards TO bankcards;
 ```
 
-## Build & Run
-- Run tests:
+## Сборка и запуск (локально)
+- Запуск тестов:
 
 ```bash
 mvn test
 ```
 
-- Run the application (dev):
+- Запуск приложения (dev):
 
 ```bash
 mvn spring-boot:run
 ```
 
-- Or build an executable JAR and run:
+- Или собрать исполняемый JAR и запустить:
 
 ```bash
 mvn clean package
 java -jar target/bankcards-0.0.1-SNAPSHOT.jar
 ```
 
-## API Docs (Swagger)
-After startup, open:
+## Документация API (Swagger)
+После старта доступны:
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 
 ## Health
-- GET http://localhost:8080/api/health (public if allowed in security config)
+- GET http://localhost:8080/api/health (публичный, если разрешено в настройках безопасности)
 
-## Authentication
-- JWT-based. Obtain/attach token according to your auth endpoints (e.g., `Authorization: Bearer <token>`).
-- Endpoints are secured by roles (`ROLE_ADMIN`, `ROLE_USER`). See controllers for details.
+## Аутентификация и роли
+- JWT. Токен передаётся в заголовке `Authorization: Bearer <token>`.
+- Доступ ограничен ролями (`ROLE_ADMIN`, `ROLE_USER`). Подробности — в контроллерах.
 
-## Key Endpoints (selection)
-- Admin:
-  - `GET /api/admin/users` — users with card counts
-  - `POST /api/admin/cards/{cardId}/block|unblock` — manage card status
-  - `POST /api/admin/users/{userId}/cards` — issue card for user
-- User:
-  - `GET /api/user/users/{userId}/cards` — list own cards
-  - `POST /api/user/cards/{cardId}/block|unblock` — manage own card
-  - `GET /api/user/cards/{cardId}/balance` — card balance
-  - `POST /api/user/users/{userId}/transfers` — transfer between own cards using body:
+### Пример получения JWT токена (Auth)
+Эндпоинты (могут отличаться в вашей версии):
+- `POST /api/auth/register` — регистрация пользователя
+- `POST /api/auth/login` — получение токена по логину/паролю
+
+Пример запроса входа:
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+        "username": "user1",
+        "password": "password"
+      }'
+```
+
+Пример ответа:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 3600
+}
+```
+
+Использование токена в запросах:
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/user/users/1/cards
+```
+
+## Основные эндпоинты (выборка)
+- Админ:
+  - `GET /api/admin/users` — список пользователей с количеством карт
+  - `POST /api/admin/cards/{cardId}/block|unblock` — блокировка/разблокировка карты
+  - `POST /api/admin/users/{userId}/cards` — выпуск карты пользователю
+- Пользователь:
+  - `GET /api/user/users/{userId}/cards` — список своих карт
+  - `POST /api/user/cards/{cardId}/block|unblock` — операции с собственной картой
+  - `GET /api/user/cards/{cardId}/balance` — баланс карты
+  - `POST /api/user/users/{userId}/transfers` — перевод между своими картами. Пример тела:
 
 ```json
 {
@@ -103,9 +132,69 @@ After startup, open:
 }
 ```
 
-## Development Tips
-- Prefer setting a stable `app.security.jwt.secret` locally.
-- Avoid committing build artifacts. Add to `.gitignore`:
+## Запуск в Docker Compose
+Ниже пример docker-compose для PostgreSQL и приложения. Требуется Dockerfile в корне проекта (см. пример далее).
+
+docker-compose.yml:
+```yaml
+version: "3.9"
+services:
+  db:
+    image: postgres:14
+    container_name: bankcards-postgres
+    environment:
+      POSTGRES_DB: bankcards
+      POSTGRES_USER: bankcards
+      POSTGRES_PASSWORD: bankcards
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: bankcards-app
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bankcards
+      SPRING_DATASOURCE_USERNAME: bankcards
+      SPRING_DATASOURCE_PASSWORD: bankcards
+      APP_SECURITY_JWT_SECRET: please-change-me-to-32-bytes-minimum-secret-key........
+    ports:
+      - "8080:8080"
+
+volumes:
+  dbdata:
+```
+
+Пример Dockerfile (multi-stage):
+```dockerfile
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY . .
+RUN mvn -q -DskipTests package
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+ENV JAVA_OPTS=""
+COPY --from=build /app/target/*SNAPSHOT.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+```
+
+Запуск:
+```bash
+docker compose up --build
+```
+
+После старта:
+- Приложение: http://localhost:8080
+- Swagger: http://localhost:8080/swagger-ui/index.html
+
+## Полезные советы
+- Задайте стабильный `app.security.jwt.secret` локально/в контейнере.
+- Не коммитьте артефакты сборки. Добавьте в `.gitignore`:
 
 ```
 /target/
@@ -113,9 +202,9 @@ After startup, open:
 .idea/
 ```
 
-## Testing
-- Controller tests use MockMvc with security filter mocked to delegate to the chain (see `UserControllerTest`, `AdminControllerTest`).
-- Service tests verify business rules (e.g., cannot activate EXPIRED).
+## Тестирование
+- Контроллеры тестируются через MockMvc с замоканным security-фильтром (см. `UserControllerTest`, `AdminControllerTest`).
+- Сервисные тесты проверяют бизнес-правила (например, запрет разблокировки EXPIRED).
 
 ## License
 MIT (or your preferred license).

@@ -67,8 +67,6 @@ public class TransferService {
      * @throws com.example.bankcards.exception.ApiExceptions.BadRequestException при нарушении правил перевода
      */
     public void transfer(Long userId, TransferRequest request) {
-        // Only ADMIN can initiate transfers for arbitrary userId.
-        // Regular USER must match path userId to their own id.
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
             boolean isAdmin = auth.getAuthorities().stream()

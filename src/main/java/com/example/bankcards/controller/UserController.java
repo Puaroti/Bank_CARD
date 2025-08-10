@@ -56,6 +56,21 @@ public class UserController {
         return ResponseEntity.ok(cardService.listUserCards(userId, filter, page, size));
     }
 
+    @PostMapping("/users/{userId}/cards")
+    @Operation(summary = "Create a new card for current user")
+    @PreAuthorize("hasRole('USER')")
+    /**
+     * Создаёт новую карту для указанного пользователя. Доступно владельцу (USER) для собственного userId.
+     * Администратор использует отдельный эндпоинт в AdminController.
+     *
+     * @param userId идентификатор пользователя
+     * @return 201 Created с DTO созданной карты
+     */
+    public ResponseEntity<CardDto> createMyCard(@PathVariable Long userId) {
+        CardDto dto = cardService.createCard(userId);
+        return ResponseEntity.status(201).body(dto);
+    }
+
     @PostMapping("/cards/{cardId}/block")
     @Operation(summary = "Request block own card")
     @PreAuthorize("hasRole('USER')")

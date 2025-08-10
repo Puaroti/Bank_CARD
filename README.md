@@ -210,9 +210,12 @@ docker compose up --build
 - Контроллеры тестируются через MockMvc с замоканным security-фильтром (см. `UserControllerTest`, `AdminControllerTest`).
 - Сервисные тесты проверяют бизнес-правила (например, запрет разблокировки EXPIRED).
 
-## Депрекации API
-- Группа `/api/cards/**` помечена как deprecated и будет удалена. Используйте:
-  - вместо `POST /api/cards/{userId}` → `POST /api/admin/users/{userId}/cards` (опц. тело `{ "owner": "..." }`)
+## Изменения API
+- Группа `/api/cards/**` удалена.
+  Используйте актуальные эндпоинты:
+  - вместо `POST /api/cards/{userId}` →
+    - Админ: `POST /api/admin/users/{userId}/cards` (опц. тело `{ "owner": "..." }`)
+    - Пользователь: `POST /api/user/users/{userId}/cards` (создание своей карты)
   - вместо `GET /api/cards/{userId}` → `GET /api/user/users/{userId}/cards`
   - вместо `PATCH /api/cards/{cardId}/status` → `PATCH /api/admin/cards/{cardId}/status`
   - вместо `POST /api/cards/{cardId}/block-request` →

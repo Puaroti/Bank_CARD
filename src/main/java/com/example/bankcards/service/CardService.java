@@ -69,6 +69,22 @@ public class CardService {
      * @throws com.example.bankcards.exception.ApiExceptions.NotFoundException если пользователь не найден
      */
     public CardDto createCard(Long userId) {
+        // Разрешаем создавать карту только владельцу (USER) для собственного userId или администратору
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .anyMatch(a -> a.equals("ROLE_ADMIN"));
+            if (!isAdmin) {
+                String username = auth.getName();
+                Long currentUserId = userRepository.findByUsername(username)
+                        .map(UserEntity::getId)
+                        .orElseThrow(() -> new ApiExceptions.BadRequestException("Current user not found"));
+                if (!currentUserId.equals(userId)) {
+                    throw new ApiExceptions.BadRequestException("Access denied to create card for another user");
+                }
+            }
+        }
         return issueAutoCard(userId, null);
     }
 

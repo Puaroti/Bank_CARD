@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-operation-history-table
+      author: dev
+      changes:
+        - createTable:
+            tableName: operation_history
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: card_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: operation_type
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: DECIMAL(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(255)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE operation_history
+              ADD CONSTRAINT chk_operation_history_amount_nonnegative
+              CHECK (amount >= 0);
+        - createIndex:
+            tableName: operation_history
+            indexName: idx_operation_history_card
+            columns:
+              - column:
+                  name: card_id
+        - addForeignKeyConstraint:
+            baseTableName: operation_history
+            baseColumnNames: card_id
+            constraintName: fk_operation_history_card
+            referencedTableName: card
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            onUpdate: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: operation_history
+            constraintName: fk_operation_history_card
+        - dropIndex:
+            tableName: operation_history
+            indexName: idx_operation_history_card
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE operation_history
+              DROP CONSTRAINT IF EXISTS chk_operation_history_amount_nonnegative;
+        - dropTable:
+            tableName: operation_history

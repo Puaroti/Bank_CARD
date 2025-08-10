@@ -116,12 +116,16 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/user/users/1/c
 ## Основные эндпоинты (выборка)
 - Админ:
   - `GET /api/admin/users` — список пользователей с количеством карт
-  - `POST /api/admin/cards/{cardId}/block|unblock` — блокировка/разблокировка карты
-  - `POST /api/admin/users/{userId}/cards` — выпуск карты пользователю
+  - `GET /api/admin/cards` — список всех карт с фильтрами
+  - `PATCH /api/admin/cards/{cardId}/status` — смена статуса карты (ACTIVE/BLOCKED/…)
+  - `POST /api/admin/cards/{cardId}/block` — блокировка карты
+  - `POST /api/admin/cards/{cardId}/unblock` — разблокировка карты
+  - `POST /api/admin/users/{userId}/cards` — выпуск карты пользователю (опц. тело `{ "owner": "..." }`)
 - Пользователь:
   - `GET /api/user/users/{userId}/cards` — список своих карт
-  - `POST /api/user/cards/{cardId}/block|unblock` — операции с собственной картой
-  - `GET /api/user/cards/{cardId}/balance` — баланс карты
+  - `POST /api/user/cards/{cardId}/block` — блокировка своей карты
+  - `POST /api/user/cards/{cardId}/unblock` — разблокировка своей карты
+  - `GET /api/user/cards/{cardId}/balance` — баланс своей карты
   - `POST /api/user/users/{userId}/transfers` — перевод между своими картами. Пример тела:
 
 ```json
@@ -205,6 +209,16 @@ docker compose up --build
 ## Тестирование
 - Контроллеры тестируются через MockMvc с замоканным security-фильтром (см. `UserControllerTest`, `AdminControllerTest`).
 - Сервисные тесты проверяют бизнес-правила (например, запрет разблокировки EXPIRED).
+
+## Депрекации API
+- Группа `/api/cards/**` помечена как deprecated и будет удалена. Используйте:
+  - вместо `POST /api/cards/{userId}` → `POST /api/admin/users/{userId}/cards` (опц. тело `{ "owner": "..." }`)
+  - вместо `GET /api/cards/{userId}` → `GET /api/user/users/{userId}/cards`
+  - вместо `PATCH /api/cards/{cardId}/status` → `PATCH /api/admin/cards/{cardId}/status`
+  - вместо `POST /api/cards/{cardId}/block-request` →
+    - `POST /api/user/cards/{cardId}/block` (пользователь)
+    - `POST /api/admin/cards/{cardId}/block` (админ)
+  - вместо `POST /api/cards/{userId}/additional` → `POST /api/admin/users/{userId}/cards` с телом `{ "owner": "..." }`
 
 ## License
 MIT (or your preferred license).

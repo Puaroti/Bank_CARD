@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Контроллер для управления картами.
@@ -20,20 +22,24 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/cards")
-@Tag(name = "Cards", description = "Card management endpoints")
+@Deprecated
+@Tag(name = "Cards (Deprecated)", description = "Deprecated endpoints. Use /api/admin/** and /api/user/** instead.")
 public class CardController {
 
     /**
      * Сервис для работы с картами.
      */
     private final CardService cardService;
+    private static final Logger log = LoggerFactory.getLogger(CardController.class);
 
     public CardController(CardService cardService) {
         this.cardService = cardService;
     }
 
     @PostMapping("/{userId}")
-    @Operation(summary = "Create card for user (backend auto-fills number/owner/expiry)", responses = {
+    @Operation(summary = "[DEPRECATED] Create card for user",
+            description = "Use POST /api/admin/users/{userId}/cards (optionally with {\"owner\":\"...\"})",
+            responses = {
             @ApiResponse(responseCode = "200", description = "Card created",
                     content = @Content(schema = @Schema(implementation = CardDto.class)))
     })
@@ -46,11 +52,13 @@ public class CardController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CardDto> create(@PathVariable Long userId) {
+        log.warn("[DEPRECATED] POST /api/cards/{}/ -> use POST /api/admin/users/{}/cards", userId, userId);
         return ResponseEntity.ok(cardService.createCard(userId));
     }
 
     @GetMapping("/{userId}")
-    @Operation(summary = "List user's cards with optional filters")
+    @Operation(summary = "[DEPRECATED] List user's cards",
+            description = "Use GET /api/user/users/{userId}/cards")
     /**
      * Возвращает список карт пользователя с пагинацией и фильтрами.
      *
@@ -65,12 +73,14 @@ public class CardController {
                                                        @RequestParam(defaultValue = "0") int page,
                                                        @RequestParam(defaultValue = "20") int size,
                                                        @Valid CardFilter filter) {
+        log.warn("[DEPRECATED] GET /api/cards/{}/ -> use GET /api/user/users/{}/cards", userId, userId);
         return ResponseEntity.ok(cardService.listUserCards(userId, filter, page, size));
     }
 
 
     @PatchMapping("/{cardId}/status")
-    @Operation(summary = "Update card status")
+    @Operation(summary = "[DEPRECATED] Update card status",
+            description = "Use PATCH /api/admin/cards/{cardId}/status")
     /**
      * Обновляет статус карты по идентификатору.
      *
@@ -81,15 +91,18 @@ public class CardController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CardDto> updateStatus(@PathVariable Long cardId,
                                                 @Valid @RequestBody CardUpdateStatusRequest request) {
+        log.warn("[DEPRECATED] PATCH /api/cards/{}/status -> use PATCH /api/admin/cards/{}/status", cardId, cardId);
         return ResponseEntity.ok(cardService.updateStatus(cardId, request));
     }
 
     @PostMapping("/{cardId}/block-request")
-    @Operation(summary = "Request card block (user/admin)",
+    @Operation(summary = "[DEPRECATED] Request card block",
+            description = "Use POST /api/user/cards/{cardId}/block (user) or /api/admin/cards/{cardId}/block (admin)",
             responses = @ApiResponse(responseCode = "200", description = "Card blocked",
                     content = @Content(schema = @Schema(implementation = CardDto.class))))
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<CardDto> requestBlock(@PathVariable Long cardId) {
+        log.warn("[DEPRECATED] POST /api/cards/{}/block-request -> use /api/user|admin paths", cardId);
         return ResponseEntity.ok(cardService.requestBlock(cardId));
     }
 
@@ -101,7 +114,8 @@ public class CardController {
     record AdditionalCardRequest(String owner) {}
 
     @PostMapping("/{userId}/additional")
-    @Operation(summary = "Issue an additional card for the user",
+    @Operation(summary = "[DEPRECATED] Issue an additional card for the user",
+            description = "Use POST /api/admin/users/{userId}/cards with optional body {owner}",
             responses = @ApiResponse(responseCode = "200", description = "Additional card issued",
                     content = @Content(schema = @Schema(implementation = CardDto.class))))
     /**
@@ -115,6 +129,7 @@ public class CardController {
     public ResponseEntity<CardDto> issueAdditional(@PathVariable Long userId,
                                                    @RequestBody(required = false) AdditionalCardRequest request) {
         String owner = request != null ? request.owner() : null;
+        log.warn("[DEPRECATED] POST /api/cards/{}/additional -> use POST /api/admin/users/{}/cards", userId, userId);
         return ResponseEntity.ok(cardService.issueAutoCard(userId, owner));
     }
 }

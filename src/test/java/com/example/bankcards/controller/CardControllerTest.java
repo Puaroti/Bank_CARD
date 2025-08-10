@@ -47,25 +47,25 @@ class CardControllerTest {
     }
 
     @Test
-    @DisplayName("User can list own cards")
+    @DisplayName("User can list own cards via /api/user/users/{userId}/cards")
     @WithMockUser(username = "user", roles = {"USER"})
     void userCanListOwnCards() throws Exception {
         Mockito.when(cardService.listUserCards(eq(1L), any(), eq(0), eq(20)))
                 .thenReturn(new PagedResponse<CardDto>(List.of(), 0, 20, 0, 0));
 
-        mockMvc.perform(get("/api/cards/1")
+        mockMvc.perform(get("/api/user/users/1/cards")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("User can request block for own card")
+    @DisplayName("User can request block for own card via /api/user/cards/{cardId}/block")
     @WithMockUser(username = "user", roles = {"USER"})
     void userCanRequestBlock() throws Exception {
         Mockito.when(cardService.requestBlock(eq(100L)))
                 .thenReturn(new CardDto());
 
-        mockMvc.perform(post("/api/cards/100/block-request")
+        mockMvc.perform(post("/api/user/cards/100/block")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
@@ -73,7 +73,7 @@ class CardControllerTest {
     @Test
     @DisplayName("Anonymous forbidden")
     void anonymousForbidden() throws Exception {
-        mockMvc.perform(get("/api/cards/1").accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/user/users/1/cards").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
 }

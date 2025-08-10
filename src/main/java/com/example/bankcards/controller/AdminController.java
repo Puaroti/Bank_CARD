@@ -30,6 +30,9 @@ import com.example.bankcards.exception.ApiExceptions;
 /**
  * Административный REST-контроллер.
  * Маршрутная префикс-группа: /api/admin
+ * <p>
+ * Содержит операции для администрирования пользователей и их карт: поиск/список пользователей,
+ * просмотр и изменение статусов карт, выпуск карт, удаление пользователей и т.п.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -141,12 +144,12 @@ public class AdminController {
     @Operation(summary = "Delete user by id (admin only)")
     @PreAuthorize("hasRole('ADMIN')")
     /**
-     * Удаляет пользователя по идентификатору.
-     * Доступно только для роли ADMIN.
-     *
-     * @param userId идентификатор пользователя
-     * @return 204 No Content при успешном удалении, 404 если не найден
-     */
+        * Удаляет пользователя по идентификатору.
+        * Доступно только для роли ADMIN.
+        *
+        * @param userId идентификатор пользователя
+        * @return 204 No Content при успешном удалении, 404 если не найден
+        */
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new ApiExceptions.NotFoundException("User not found");

@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Пользовательский REST-контроллер.
  * Базовый путь: /api/user
+ * <p>
+ * Содержит операции для владельца карт: просмотр карт, запрос блокировки/разблокировки,
+ * просмотр баланса и перевод средств между своими картами.
  */
 @RestController
 @RequestMapping("/api/user")
@@ -37,8 +40,14 @@ public class UserController {
     @Operation(summary = "List current user's own cards with filters and pagination")
     @PreAuthorize("hasRole('USER')")
     /**
-     * Возвращает список карт текущего пользователя. Для обычного пользователя
-     * метод вернёт только его карты (проверка выполняется в сервисе), для ADMIN — разрешено запрашивать любые userId.
+     * Возвращает список карт указанного пользователя с учётом правил доступа.
+     * Пользователь с ролью USER получит только свои карты; ADMIN может запрашивать любые userId.
+     *
+     * @param userId идентификатор пользователя
+     * @param page номер страницы (0-индексация)
+     * @param size размер страницы
+     * @param filter параметры фильтрации
+     * @return PagedResponse с DTO карт
      */
     public ResponseEntity<PagedResponse<CardDto>> listMyCards(@PathVariable Long userId,
                                                               @RequestParam(defaultValue = "0") int page,
@@ -51,7 +60,11 @@ public class UserController {
     @Operation(summary = "Request block own card")
     @PreAuthorize("hasRole('USER')")
     /**
-     * Отправляет запрос на блокировку собственной карты. Сейчас блокировка происходит сразу.
+     * Отправляет запрос на блокировку собственной карты.
+     * В текущей реализации блокировка применяется немедленно.
+     *
+     * @param cardId идентификатор карты
+     * @return DTO обновленной карты
      */
     public ResponseEntity<CardDto> requestBlock(@PathVariable Long cardId) {
         return ResponseEntity.ok(cardService.requestBlock(cardId));
@@ -65,7 +78,11 @@ public class UserController {
     })
     @PreAuthorize("hasRole('USER')")
     /**
-     * Отправляет запрос на разблокировку собственной карты. Для карт со статусом EXPIRED вернёт 400.
+     * Отправляет запрос на разблокировку собственной карты.
+     * Попытка разблокировать карту со статусом EXPIRED завершится 400 Bad Request.
+     *
+     * @param cardId идентификатор карты
+     * @return DTO обновленной карты
      */
     public ResponseEntity<CardDto> requestUnblock(@PathVariable Long cardId) {
         return ResponseEntity.ok(cardService.requestUnblock(cardId));
@@ -75,7 +92,11 @@ public class UserController {
     @Operation(summary = "Get balance of own card")
     @PreAuthorize("hasRole('USER')")
     /**
-     * Возвращает текущий баланс карты. Доступ только владельцу карты (ADMIN имеет доступ ко всем картам).
+     * Возвращает текущий баланс карты.
+     * Доступ разрешён только владельцу; ADMIN имеет доступ ко всем картам.
+     *
+     * @param cardId идентификатор карты
+     * @return объект с текущим балансом
      */
     public ResponseEntity<BalanceDto> getBalance(@PathVariable Long cardId) {
         return ResponseEntity.ok(cardService.getBalance(cardId));
@@ -85,8 +106,12 @@ public class UserController {
     @Operation(summary = "Transfer money between own cards")
     @PreAuthorize("hasRole('USER')")
     /**
-     * Выполняет перевод средств между собственными картами пользователя. Валидации и проверки на принадлежность
-     * карт выполняются на уровне сервиса переводов.
+     * Выполняет перевод средств между собственными картами пользователя.
+     * Валидации и проверки принадлежности карт выполняются на уровне сервиса переводов.
+     *
+     * @param userId идентификатор пользователя
+     * @param request детали перевода (карта-отправитель, карта-получатель, сумма)
+     * @return 200 OK без тела при успехе
      */
     public ResponseEntity<Void> transfer(@PathVariable Long userId,
                                          @Valid @RequestBody TransferRequest request) {

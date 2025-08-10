@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Контроллер для управления картами.
+ * <p>
+ * Админские операции по выпуску и изменению статусов карт, а также пользовательские запросы
+ * на блокировку. Путь: /api/cards.
  */
 @RestController
 @RequestMapping("/api/cards")

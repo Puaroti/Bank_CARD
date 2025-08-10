@@ -12,6 +12,7 @@ import com.example.bankcards.repository.OperationHistoryRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.util.MapperUtils;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ import java.util.Random;
  */
 @Service
 @Tag(name = "Card Service", description = "Business logic for cards")
+@Slf4j
 public class CardService {
 
     /**
@@ -69,6 +71,7 @@ public class CardService {
      * @throws com.example.bankcards.exception.ApiExceptions.NotFoundException если пользователь не найден
      */
     public CardDto createCard(Long userId) {
+        log.info("[CardService] createCard userId={}", userId);
         // Разрешаем создавать карту только владельцу (USER) для собственного userId или администратору
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
@@ -85,7 +88,9 @@ public class CardService {
                 }
             }
         }
-        return issueAutoCard(userId, null);
+        CardDto dto = issueAutoCard(userId, null);
+        log.info("[CardService] createCard success userId={}, cardId={}", userId, dto.getId());
+        return dto;
     }
 
     /**
@@ -98,6 +103,8 @@ public class CardService {
      * @return страничный ответ с DTO карт
      */
     public PagedResponse<CardDto> listUserCards(Long userId, CardFilter filter, int page, int size) {
+        log.info("[CardService] listUserCards userId={}, page={}, size={}, statusFilter={}, ownerContains={}",
+                userId, page, size, filter != null ? filter.getStatus() : null, filter != null ? filter.getOwner() : null);
         // Enforce that regular USER can only view own cards; ADMIN can view any
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
@@ -121,32 +128,38 @@ public class CardService {
                 filter != null ? filter.getOwner() : null,
                 filter != null ? filter.getQuery() : null,
                 pageable);
-        return new PagedResponse<>(
+        PagedResponse<CardDto> resp = new PagedResponse<>(
                 paged.map(MapperUtils::toCardDto).getContent(),
                 paged.getNumber(),
                 paged.getSize(),
                 paged.getTotalElements(),
                 paged.getTotalPages()
         );
+        log.debug("[CardService] listUserCards result count={} totalElements={}", resp.getContent().size(), resp.getTotalElements());
+        return resp;
     }
 
     /**
      * Список всех карт (для админа) с фильтрами и пагинацией.
      */
     public PagedResponse<CardDto> listAllCards(CardFilter filter, int page, int size) {
+        log.info("[CardService] listAllCards page={}, size={}, statusFilter={}, ownerContains={}",
+                page, size, filter != null ? filter.getStatus() : null, filter != null ? filter.getOwner() : null);
         Pageable pageable = PageRequest.of(page, size);
         Page<CardEntity> paged = cardRepository.searchAll(
                 filter != null ? filter.getStatus() : null,
                 filter != null ? filter.getOwner() : null,
                 filter != null ? filter.getQuery() : null,
                 pageable);
-        return new PagedResponse<>(
+        PagedResponse<CardDto> resp = new PagedResponse<>(
                 paged.map(MapperUtils::toCardDto).getContent(),
                 paged.getNumber(),
                 paged.getSize(),
                 paged.getTotalElements(),
                 paged.getTotalPages()
         );
+        log.debug("[CardService] listAllCards result count={} totalElements={}", resp.getContent().size(), resp.getTotalElements());
+        return resp;
     }
 
     @Transactional
@@ -155,6 +168,7 @@ public class CardService {
      * чтобы не вводить новый статус в перечисление. Дальше можно заменить на PENDING-логику.
      */
     public CardDto requestBlock(Long cardId) {
+        log.info("[CardService] requestBlock cardId={}", cardId);
         CardEntity card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("Card not found"));
 
@@ -190,7 +204,9 @@ public class CardService {
         hist.setDescription("Card blocked by user request");
         historyRepository.save(hist);
 
-        return MapperUtils.toCardDto(card);
+        CardDto dto = MapperUtils.toCardDto(card);
+        log.info("[CardService] requestBlock success cardId={}, newStatus={}", cardId, dto.getStatus());
+        return dto;
     }
 
     @Transactional
@@ -200,6 +216,7 @@ public class CardService {
      * не является просроченной.
      */
     public CardDto requestUnblock(Long cardId) {
+        log.info("[CardService] requestUnblock cardId={}", cardId);
         CardEntity card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("Card not found"));
 
@@ -249,6 +266,7 @@ public class CardService {
      * @throws com.example.bankcards.exception.ApiExceptions.BadRequestException если пытаемся активировать просроченную карту
      */
     public CardDto updateStatus(Long cardId, CardUpdateStatusRequest request) {
+        log.info("[CardService] updateStatus cardId={}, newStatus={}", cardId, request != null ? request.status() : null);
         CardEntity card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("Card not found"));
         // Блокируем попытку активации просроченной карты
@@ -256,7 +274,9 @@ public class CardService {
             throw new ApiExceptions.BadRequestException("Cannot activate expired card");
         }
         card.setStatus(request.status());
-        return MapperUtils.toCardDto(cardRepository.save(card));
+        CardDto dto = MapperUtils.toCardDto(cardRepository.save(card));
+        log.info("[CardService] updateStatus success cardId={}, newStatus={}", cardId, dto.getStatus());
+        return dto;
     }
 
     /**
@@ -271,6 +291,7 @@ public class CardService {
 
     /** Возвращает баланс карты с проверкой доступа. */
     public com.example.bankcards.dto.BalanceDto getBalance(Long cardId) {
+        log.info("[CardService] getBalance cardId={}", cardId);
         CardEntity card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("Card not found"));
 
@@ -289,7 +310,9 @@ public class CardService {
             }
         }
 
-        return new com.example.bankcards.dto.BalanceDto(card.getBalance());
+        com.example.bankcards.dto.BalanceDto dto = new com.example.bankcards.dto.BalanceDto(card.getBalance());
+        log.debug("[CardService] getBalance success cardId={}", cardId);
+        return dto;
     }
 
     @Transactional
@@ -304,6 +327,7 @@ public class CardService {
      * @return DTO выпущенной карты
      */
     public CardDto issueAutoCard(Long userId, String ownerFullName) {
+        log.info("[CardService] issueAutoCard userId={}, ownerProvided={}", userId, ownerFullName != null);
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("User not found"));
 
@@ -331,7 +355,9 @@ public class CardService {
         entity.setUser(user);
         entity.setBalance(java.math.BigDecimal.ZERO);
         CardEntity saved = cardRepository.save(entity);
-        return MapperUtils.toCardDto(saved);
+        CardDto dto = MapperUtils.toCardDto(saved);
+        log.info("[CardService] issueAutoCard success userId={}, cardId={}", userId, dto.getId());
+        return dto;
     }
 
     /**

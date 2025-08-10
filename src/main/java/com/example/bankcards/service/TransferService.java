@@ -7,6 +7,7 @@ import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.OperationHistoryRepository;
 import com.example.bankcards.repository.TransferRepository;
 import com.example.bankcards.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
  * Сервис для перевода средств между картами одного пользователя.
  */
 @Service
+@Slf4j
 public class TransferService {
 
     /** Репозиторий карт. */
@@ -67,6 +69,11 @@ public class TransferService {
      * @throws com.example.bankcards.exception.ApiExceptions.BadRequestException при нарушении правил перевода
      */
     public void transfer(Long userId, TransferRequest request) {
+        log.info("[TransferService] transfer start userId={}, amount={}, from=****{} to=****{}",
+                userId,
+                request != null ? request.amount() : null,
+                request != null && request.fromCardNumber() != null ? request.fromCardNumber().substring(Math.max(0, request.fromCardNumber().length() - 4)) : null,
+                request != null && request.toCardNumber() != null ? request.toCardNumber().substring(Math.max(0, request.toCardNumber().length() - 4)) : null);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null) {
             boolean isAdmin = auth.getAuthorities().stream()
@@ -141,5 +148,7 @@ public class TransferService {
         // Mark success
         transfer.setStatus(TransferStatus.SUCCESS);
         transferRepository.save(transfer);
+        log.info("[TransferService] transfer success userId={}, amount={}, fromCardId={}, toCardId={}, transferId={}",
+                userId, amount, from.getId(), to.getId(), transfer.getId());
     }
 }

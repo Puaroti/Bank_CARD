@@ -8,6 +8,7 @@ import com.example.bankcards.dto.UserWithCardCountDto;
 import com.example.bankcards.dto.CardUpdateStatusRequest;
 import com.example.bankcards.entity.CardStatus;
 import com.example.bankcards.service.CardService;
+import lombok.extern.slf4j.Slf4j;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -39,6 +40,7 @@ import com.example.bankcards.exception.ApiExceptions;
 @RestController
 @RequestMapping("/api/admin")
 @Tag(name = "Admin", description = "Admin-only management endpoints")
+@Slf4j
 public class AdminController {
 
     private final CardService cardService;
@@ -59,10 +61,11 @@ public class AdminController {
      * @return 200 OK со списком UserWithCardCountDto
      */
     public ResponseEntity<java.util.List<UserWithCardCountDto>> listUsersWithCardCounts() {
+        log.info("[AdminController] listUsersWithCardCounts");
         return ResponseEntity.ok(userRepository.findAllWithCardCounts());
     }
 
-    // Cards
+    
     @GetMapping("/cards")
     @Operation(summary = "List all cards (admin only)")
     @PreAuthorize("hasRole('ADMIN')")
@@ -78,6 +81,8 @@ public class AdminController {
     public ResponseEntity<PagedResponse<CardDto>> listAll(@RequestParam(defaultValue = "0") int page,
                                                           @RequestParam(defaultValue = "20") int size,
                                                           @Valid CardFilter filter) {
+        log.info("[AdminController] listAllCards page={}, size={}, statusFilter={}, ownerContains={}",
+                page, size, filter != null ? filter.getStatus() : null, filter != null ? filter.getOwner() : null);
         return ResponseEntity.ok(cardService.listAllCards(filter, page, size));
     }
 
@@ -90,7 +95,10 @@ public class AdminController {
      */
     public ResponseEntity<CardDto> adminUpdateCardStatus(@PathVariable Long cardId,
                                                          @Valid @RequestBody CardUpdateStatusRequest request) {
-        return ResponseEntity.ok(cardService.updateStatus(cardId, request));
+        log.info("[AdminController] updateCardStatus cardId={}, newStatus={}", cardId, request != null ? request.status() : null);
+        CardDto dto = cardService.updateStatus(cardId, request);
+        log.info("[AdminController] updateCardStatus success cardId={}, newStatus={}", cardId, dto.getStatus());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/cards/{cardId}/block")
@@ -104,7 +112,9 @@ public class AdminController {
      * @return 200 OK с DTO заблокированной карты
      */
     public ResponseEntity<CardDto> adminBlockCard(@PathVariable Long cardId) {
+        log.info("[AdminController] blockCard cardId={}", cardId);
         CardDto dto = cardService.requestBlock(cardId);
+        log.info("[AdminController] blockCard success cardId={}, newStatus={}", cardId, dto.getStatus());
         return ResponseEntity.ok(dto);
     }
 
@@ -124,7 +134,9 @@ public class AdminController {
      * @return 200 OK с DTO обновленной карты
      */
     public ResponseEntity<CardDto> adminUnblockCard(@PathVariable Long cardId) {
+        log.info("[AdminController] unblockCard cardId={}", cardId);
         CardDto dto = cardService.updateStatus(cardId, new CardUpdateStatusRequest(CardStatus.ACTIVE));
+        log.info("[AdminController] unblockCard success cardId={}, newStatus={}", cardId, dto.getStatus());
         return ResponseEntity.ok(dto);
     }
 
@@ -140,6 +152,7 @@ public class AdminController {
      * @return 200 OK с краткой информацией о пользователе или 404, если не найден
      */
     public ResponseEntity<UserSummaryDto> findUserByUsername(@RequestParam String username) {
+        log.info("[AdminController] findUserByUsername username={}", username);
         UserEntity user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ApiExceptions.NotFoundException("User not found"));
         UserSummaryDto dto = new UserSummaryDto(
@@ -165,6 +178,7 @@ public class AdminController {
         * @return 204 No Content при успешном удалении, 404 если не найден
         */
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        log.warn("[AdminController] deleteUser userId={}", userId);
         if (!userRepository.existsById(userId)) {
             throw new ApiExceptions.NotFoundException("User not found");
         }
@@ -189,7 +203,9 @@ public class AdminController {
     public ResponseEntity<CardDto> adminCreateUserCard(@PathVariable Long userId,
                                                        @RequestBody(required = false) AdminCreateCardRequest req) {
         String owner = (req != null) ? req.owner() : null;
+        log.info("[AdminController] createUserCard userId={}, ownerProvided={}", userId, owner != null);
         CardDto dto = cardService.issueAutoCard(userId, owner);
+        log.info("[AdminController] createUserCard success userId={}, cardId={}", userId, dto.getId());
         return ResponseEntity.status(201).body(dto);
     }
 }

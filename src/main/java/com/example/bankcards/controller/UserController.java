@@ -7,6 +7,7 @@ import com.example.bankcards.dto.TransferRequest;
 import com.example.bankcards.dto.BalanceDto;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.TransferService;
+import lombok.extern.slf4j.Slf4j;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/user")
 @Tag(name = "User", description = "User endpoints to manage own cards and transfers")
+@Slf4j
 public class UserController {
 
     private final CardService cardService;
@@ -53,7 +55,12 @@ public class UserController {
                                                               @RequestParam(defaultValue = "0") int page,
                                                               @RequestParam(defaultValue = "20") int size,
                                                               @Valid CardFilter filter) {
-        return ResponseEntity.ok(cardService.listUserCards(userId, filter, page, size));
+        log.info("[UserController] listMyCards userId={}, page={}, size={}, statusFilter={}, ownerContains={}",
+                userId, page, size, filter != null ? filter.getStatus() : null, filter != null ? filter.getOwner() : null);
+        PagedResponse<CardDto> response = cardService.listUserCards(userId, filter, page, size);
+        log.debug("[UserController] listMyCards success userId={}, page={}, size={}, statusFilter={}, ownerContains={}, response={}",
+                userId, page, size, filter != null ? filter.getStatus() : null, filter != null ? filter.getOwner() : null, response);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/users/{userId}/cards")
@@ -67,7 +74,9 @@ public class UserController {
      * @return 201 Created с DTO созданной карты
      */
     public ResponseEntity<CardDto> createMyCard(@PathVariable Long userId) {
+        log.info("[UserController] createMyCard userId={}", userId);
         CardDto dto = cardService.createCard(userId);
+        log.info("[UserController] createMyCard success userId={}, cardId={}", userId, dto.getId());
         return ResponseEntity.status(201).body(dto);
     }
 
@@ -82,7 +91,10 @@ public class UserController {
      * @return DTO обновленной карты
      */
     public ResponseEntity<CardDto> requestBlock(@PathVariable Long cardId) {
-        return ResponseEntity.ok(cardService.requestBlock(cardId));
+        log.info("[UserController] requestBlock cardId={}", cardId);
+        CardDto dto = cardService.requestBlock(cardId);
+        log.info("[UserController] requestBlock success cardId={}, newStatus={}", cardId, dto.getStatus());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/cards/{cardId}/unblock")
@@ -100,7 +112,10 @@ public class UserController {
      * @return DTO обновленной карты
      */
     public ResponseEntity<CardDto> requestUnblock(@PathVariable Long cardId) {
-        return ResponseEntity.ok(cardService.requestUnblock(cardId));
+        log.info("[UserController] requestUnblock cardId={}", cardId);
+        CardDto dto = cardService.requestUnblock(cardId);
+        log.info("[UserController] requestUnblock success cardId={}, newStatus={}", cardId, dto.getStatus());
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/cards/{cardId}/balance")
@@ -114,7 +129,10 @@ public class UserController {
      * @return объект с текущим балансом
      */
     public ResponseEntity<BalanceDto> getBalance(@PathVariable Long cardId) {
-        return ResponseEntity.ok(cardService.getBalance(cardId));
+        log.info("[UserController] getBalance cardId={}", cardId);
+        BalanceDto dto = cardService.getBalance(cardId);
+        log.debug("[UserController] getBalance cardId={}, balance={}", cardId, dto.balance());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/users/{userId}/transfers")
@@ -130,7 +148,14 @@ public class UserController {
      */
     public ResponseEntity<Void> transfer(@PathVariable Long userId,
                                          @Valid @RequestBody TransferRequest request) {
+        String fromMasked = request != null && request.fromCardNumber() != null && request.fromCardNumber().length() >= 4
+                ? "****" + request.fromCardNumber().substring(request.fromCardNumber().length() - 4) : "(null)";
+        String toMasked = request != null && request.toCardNumber() != null && request.toCardNumber().length() >= 4
+                ? "****" + request.toCardNumber().substring(request.toCardNumber().length() - 4) : "(null)";
+        log.info("[UserController] transfer userId={}, from={}, to={}, amount={}", userId, fromMasked, toMasked,
+                request != null ? request.amount() : null);
         transferService.transfer(userId, request);
+        log.info("[UserController] transfer success userId={}, from={}, to={}", userId, fromMasked, toMasked);
         return ResponseEntity.ok().build();
     }
 }
